@@ -12,6 +12,7 @@
 | 项目 | 值 |
 |------|-----|
 | oG-Memory 项目根 | `/data/Workspace2/oG-Memory/` |
+| oG-Memory Service API | `/data/Workspace2/oG-Memory/service/api.py` |
 | OpenClaw 插件目录 | `/data/Workspace2/oG-Memory/openclaw_context_engine_plugin/` |
 | AGFS 数据目录 | （待确认） |
 | Python 环境 | conda py11 |

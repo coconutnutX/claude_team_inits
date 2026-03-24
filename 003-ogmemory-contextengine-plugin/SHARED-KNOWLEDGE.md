@@ -36,6 +36,7 @@ OpenClaw Gateway（对话层）
 |------|------|
 | oG-Memory 项目根 | `/data/Workspace2/oG-Memory/` |
 | oG-Memory 核心文档 | `/data/Workspace2/oG-Memory/CLAUDE.md` |
+| oG-Memory Service API | `/data/Workspace2/oG-Memory/service/api.py` |
 | OpenClaw 插件 | `/data/Workspace2/oG-Memory/openclaw_context_engine_plugin/` |
 | 插件 bridge 层 | `.../openclaw_context_engine_plugin/bridge/memory_api.py` |
 | 插件引擎入口 | `.../openclaw_context_engine_plugin/mock_engine.py` |

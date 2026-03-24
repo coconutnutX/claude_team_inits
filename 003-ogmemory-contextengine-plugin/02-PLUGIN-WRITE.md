@@ -40,6 +40,7 @@ def extract_and_commit(messages: list[dict], session_id: str) -> dict:
 ```
 
 **关键：**
+- 通过 `service/api.py` 暴露的接口调用写入（与 Phase 1 中 test_write_api.py 使用相同路径）
 - import 路径要从 Phase 1 的 test_write_api.py 中复用
 - RequestContext 的 account_id/user_id/agent_id 初期写死测试值
 - session_id 从 OpenClaw 传入的参数获取

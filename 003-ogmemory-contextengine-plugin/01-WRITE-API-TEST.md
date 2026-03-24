@@ -12,10 +12,11 @@
    - §3 核心对象模型（RequestContext, ContextNode）
    - §4 核心接口规范（ContextFS, CandidateExtractor）
    - §2 AGFS 目录 Spec（写入顺序和文件结构）
-2. 确认可用的写入路径：
-   - 方案 A：完整 pipeline（CandidateExtractor → MergePolicy → ContextWriter）
-   - 方案 B：直接 ContextFS.write_node()（如果 pipeline 未就绪）
-3. 确认 AGFS 数据目录位置（记录到 PROGRESS.md 关键路径表）
+2. **阅读 `/data/Workspace2/oG-Memory/service/api.py`** — 这是 oG-Memory 的对外 API 入口，所有写入/检索调用都从这里进入。先看它暴露了哪些方法、参数签名、以及内部调用链路。
+3. 确认可用的写入路径：
+   - 方案 A：通过 `service/api.py` 暴露的写入接口调用完整 pipeline
+   - 方案 B：直接 ContextFS.write_node()（如果 service 层或 pipeline 未就绪）
+4. 确认 AGFS 数据目录位置（记录到 PROGRESS.md 关键路径表）
 
 ---
 
