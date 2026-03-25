@@ -104,7 +104,7 @@ read_memory(
 | LLM Provider | OpenAI（`OPENAI_API_KEY` 环境变量） |
 | AGFS 服务端口 | `1833` |
 | 写入路径 | `MemoryWriteAPI.commit_session()`（完整 pipeline） |
-| OpenClaw 插件配置 | `api.config.plugins.entries['mock-context-engine'].config` |
+| OpenClaw 插件配置 | `api.config.plugins.entries['og-memory-context-engine'].config` |
 | Python 路径配置 | `~/.openclaw/openclaw.json` 中 `pythonBin` 字段 |
 
 ## 不可违反的规则
