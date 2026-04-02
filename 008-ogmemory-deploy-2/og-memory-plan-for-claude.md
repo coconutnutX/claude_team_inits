@@ -2,8 +2,10 @@
 
 > **交付目标**：用户通过 `pip install context-engine` 安装后，执行 `ogc serve` 即可启动完整服务（API + AGFS），无需手动运行 Docker 或部署脚本。
 >
+> **运行环境**：Windows 系统中 WSL2 终端，Python 环境通过 conda 激活（Python 3.11）。所有命令、路径、兼容性都以此环境为准。
+>
 > **⚠️ 核心约束（贯穿全程，违反任何一条都需要停下来确认）**：
-> 1. **不调整现有目录结构**——不搬家、不重命名、不重新归类现有文件
+> 1. **不修改现有代码目录结构**——不搬家、不重命名、不重新归类现有文件。当前目录结构即使很乱也不要动，减少改动就是减少风险
 > 2. **尽量减少代码修改**——业务代码不改，仅新增部署封装层
 > 3. **保留环境变量作为配置方式**——不引入 config.toml，现有 `os.getenv()` 调用全部保持原样
 > 4. **发现问题只记录不修改**——迁移过程中发现的业务 bug、硬编码、命名不一致等问题，记录到 issues 清单，不在本次修复
@@ -17,6 +19,7 @@
 Phase 0: 环境调查  →  输出调查报告  →  ⚠️ 人工审核通过后才能继续
 Phase 1: 精确规格  →  输出开发规格文档（每个组件的端口、配置、路径全部写死）
 Phase 2: 实施      →  按规格文档开发，不得偏离
+Phase 3: 验证      →  逐组件验证 + 端到端验证 + 输出人类可复现的操作指南
 ```
 
 ---
@@ -31,6 +34,17 @@ Phase 2: 实施      →  按规格文档开发，不得偏离
 
 > **Phase 0 的产出物必须经过人类检查确认后，才能进入 Phase 1。**
 > 不要在人类确认前开始写任何代码。
+
+### 环境前提
+
+```
+操作系统：Windows + WSL2
+Shell：WSL2 内的 bash/zsh
+Python：conda 环境，Python 3.11
+Docker：WSL2 内通过 Docker Desktop 或原生 docker
+```
+
+Phase 0 的所有命令都应在 WSL2 终端内执行。注意 WSL2 下 Docker 的网络行为（`host.docker.internal`、localhost 映射等）可能与原生 Linux 不同，需要在调查中特别记录。
 
 ### 调查内容
 
@@ -51,7 +65,7 @@ Phase 2: 实施      →  按规格文档开发，不得偏离
 **网络配置**
 - 实际监听地址和端口：是 `0.0.0.0:1833`？`127.0.0.1:1833`？`:8080`？
 - 确认方式：启动后 `ss -tlnp | grep agfs` 或 `netstat -tlnp | grep agfs` 或查看启动日志
-- 健康检查端点：URL 是什么？（`/health`？`/healthz`？）返回什么？
+- 健康检查端点：URL 是什么？（`/health`？`/healthz`？根路径？）返回什么？
 
 **配置文件**
 - 配置文件格式（YAML？TOML？JSON？）
@@ -61,6 +75,7 @@ Phase 2: 实施      →  按规格文档开发，不得偏离
 **存储路径**
 - 数据实际存储在哪里？（哪个目录？Docker volume？）
 - 该路径是在配置文件中指定的还是默认值？
+- 如何在终端中查看 AGFS 中已存储的文件？（agfs-shell？HTTP API？直接 ls 数据目录？）
 
 **现有代码中的调用方式**
 - `grep -rn "agfs\|AGFS\|1833\|8080" --include="*.py" --include="*.js" --include="*.yaml" --include="*.yml"` 的完整输出
@@ -76,6 +91,7 @@ Phase 2: 实施      →  按规格文档开发，不得偏离
 **网络配置**
 - 容器内端口 → 宿主机端口映射（是 5432:5432 还是 8888:5432？）
 - 现有代码中连接用的端口是哪个？
+- WSL2 下从宿主机和从 WSL2 内部分别如何访问？
 
 **认证信息**
 - 用户名、密码、数据库名（从启动命令的 -e 参数中提取）
@@ -85,6 +101,10 @@ Phase 2: 实施      →  按规格文档开发，不得偏离
 - 有无 init.sql？内容是什么？
 - 需要安装什么插件/扩展？（向量索引相关的）
 - 建了哪些表？`\dt` 或 `SELECT * FROM pg_tables WHERE schemaname='public'` 的输出
+
+**如何连接和查询**
+- 通过 docker exec 进入容器并使用 gsql 的完整命令
+- 查看数据的示例 SQL（`SELECT * FROM vector_index LIMIT 5` 或类似）
 
 **现有代码中的调用方式**
 - `grep -rn "OPENGUASS\|opengauss\|5432\|8888\|psycopg\|connection_string" --include="*.py"` 的完整输出
@@ -116,6 +136,12 @@ Phase 2: 实施      →  按规格文档开发，不得偏离
 
 #### 0.4 现有代码全局信息
 
+**目录结构**
+- `find . -type f -name "*.py" -o -name "*.js" -o -name "*.yaml" -o -name "*.yml" -o -name "*.json" | head -80` 的输出
+- 记录当前目录结构，不评价，不建议调整
+
+> **⚠️ 注意**：即使目录结构看起来不合理，也只记录不改。这是硬约束。
+
 **环境变量完整清单**
 ```bash
 grep -rn "os.getenv\|os.environ\|process.env" --include="*.py" --include="*.js"
@@ -124,7 +150,7 @@ grep -rn "os.getenv\|os.environ\|process.env" --include="*.py" --include="*.js"
 
 **Python 依赖**
 - `cat requirements.txt` 或 `cat setup.py` 或 `cat pyproject.toml`（如果已存在）
-- `pip freeze` 当前环境的完整输出
+- 当前 conda 环境中 `conda list` 或 `pip freeze` 的完整输出
 
 **入口模块**
 - 现有 API server 是如何启动的？入口文件是哪个？
@@ -137,7 +163,7 @@ grep -rn "os.getenv\|os.environ\|process.env" --include="*.py" --include="*.js"
 # Context Engine 环境调查报告
 
 > 调查时间：YYYY-MM-DD
-> 调查环境：（操作系统、Python 版本等）
+> 调查环境：Windows + WSL2, conda Python 3.11
 
 ## 1. AGFS
 ### 1.1 二进制
@@ -157,26 +183,54 @@ grep -rn "os.getenv\|os.environ\|process.env" --include="*.py" --include="*.js"
 
 ### 1.4 存储
 - 数据目录：
+- 查看方式：
 
 ### 1.5 代码中的引用
 | 文件:行号 | 引用内容 | 硬编码/环境变量 |
 |-----------|----------|----------------|
 
 ## 2. openGauss
-（同样结构）
+### 2.1 启动
+- Docker 启动命令：（原样粘贴）
+- 镜像：
+- 容器名：
+
+### 2.2 网络
+- 端口映射：
+- WSL2 访问方式：
+
+### 2.3 认证
+- 用户名：
+- 密码：
+- 数据库：
+- 连接串：
+
+### 2.4 表结构
+（\dt 输出 + 关键表的 \d 输出）
+
+### 2.5 连接方式
+- docker exec 命令：（原样粘贴，人类可直接复制执行）
+- 查询示例：
+
+### 2.6 代码中的引用
+| 文件:行号 | 引用内容 | 硬编码/环境变量 |
+|-----------|----------|----------------|
 
 ## 3. OpenClaw 插件
 （同样结构）
 
 ## 4. 全局信息
-### 4.1 环境变量清单
+### 4.1 目录结构
+（原样粘贴，不评价）
+
+### 4.2 环境变量清单
 | 变量名 | 文件:行号 | 默认值 | 用途 |
 |--------|-----------|--------|------|
 
-### 4.2 Python 依赖
+### 4.3 Python 依赖
 （原样粘贴）
 
-### 4.3 入口模块
+### 4.4 入口模块
 - 文件：
 - 启动命令：
 
@@ -218,7 +272,7 @@ grep -rn "os.getenv\|os.environ\|process.env" --include="*.py" --include="*.js"
 
 **openGauss 连接规格**（基于 Phase 0 调查结果填入精确值）
 - 连接串格式：______（从调查报告 2 取）
-- 环境变量名：______（从调查报告 4.1 取，精确拼写）
+- 环境变量名：______（从调查报告 4.2 取，精确拼写）
 - 连通性检测方式：______
 
 **插件安装规格**（基于 Phase 0 调查结果填入精确值）
@@ -229,12 +283,12 @@ grep -rn "os.getenv\|os.environ\|process.env" --include="*.py" --include="*.js"
 
 **pyproject.toml 规格**
 - 包名：`context-engine`
-- CLI 入口：`ogc = "______:cli"`（从调查报告 4.3 确认入口模块后填入）
-- dependencies：______（从调查报告 4.2 取）
+- CLI 入口：`ogc = "______:cli"`（从调查报告 4.4 确认入口模块后填入）
+- dependencies：______（从调查报告 4.3 取）
 - 包含的数据文件（JS 插件）：______
 
 **.env.example 规格**
-- 完整的变量清单及默认值（从调查报告 4.1 逐条取，拼写必须完全一致）
+- 完整的变量清单及默认值（从调查报告 4.2 逐条取，拼写必须完全一致）
 
 ---
 
@@ -243,6 +297,7 @@ grep -rn "os.getenv\|os.environ\|process.env" --include="*.py" --include="*.js"
 ### 约束
 
 - **Phase 1 规格文档是唯一依据**。不得凭记忆或猜测填写端口、路径、配置字段名
+- **不修改现有代码目录结构**。所有新增文件放在合适的现有目录中或项目根目录，不创建新的子目录来重组现有代码
 - **每一步 commit 后验证**。不要写完全部代码再测试
 - **遇到规格文档与现实不符时 stop and ask**，不得自行修改
 
@@ -309,13 +364,140 @@ grep -rn "os.getenv\|os.environ\|process.env" --include="*.py" --include="*.js"
 
 ---
 
+## Phase 3：验证 + 操作指南（Phase 2 完成后执行）
+
+### 目标
+
+验证每个组件和端到端流程确实可工作，不是"代码能跑"而是"数据真的写进去了、真的查出来了"。验证完成后，产出一份人类可以在终端中直接复制粘贴执行的操作指南。
+
+### 3.1 逐组件验证
+
+**AGFS 验证**
+- `ogc serve` 后 AGFS 子进程是否在运行（`ps aux | grep agfs`）
+- AGFS 健康检查端点返回正常
+- 通过 API 触发一次 after_turn（写入记忆），然后检查 AGFS 中是否有对应的 .md 文件
+- 验证方式：直接 `ls` AGFS 数据目录 / 用 agfs-shell 查看 / 用 HTTP API 查看
+
+**openGauss 验证**
+- openGauss 容器在运行（`docker ps`）
+- 从 WSL2 内能连接到 openGauss
+- 通过 API 触发一次 after_turn 后，检查 vector_index 表中是否有新数据
+- 验证方式：`docker exec` 进容器执行 gsql 查询
+
+**API 验证**
+- health 端点返回正常
+- assemble 端点返回正常（即使没有匹配记忆，也应返回成功响应）
+- after_turn 端点返回正常
+
+**插件验证**
+- `ogc plugin install` 后目录存在
+- `ogc plugin status` 显示已安装
+- OpenClaw 启动后能加载插件（检查启动日志）
+
+### 3.2 端到端验证
+
+完整跑通一次"写入记忆 → 查询记忆"流程：
+
+```
+1. ogc serve                        ← 启动服务
+2. curl after_turn（写入一条记忆）     ← 写入
+3. 检查 AGFS 中有文件                  ← 验证存储层
+4. 检查 openGauss 中有记录             ← 验证索引层
+5. curl assemble（查询相关记忆）       ← 验证检索层
+6. 确认返回结果中包含刚写入的记忆      ← 验证端到端
+```
+
+如果任何步骤失败，debug 并修复（修复范围仅限部署封装层代码，不改业务代码）。
+
+### 3.3 产出：人类操作指南
+
+验证完成后，输出一份操作指南文档。要求：
+- 所有命令都是**可直接复制粘贴执行**的，不含占位符
+- 使用当前环境的实际值（实际端口、实际容器名、实际用户名密码）
+
+文档内容至少包括：
+
+```markdown
+# Context Engine 操作指南
+
+## 查看 AGFS 中的内容
+
+### 方式 1：直接查看数据目录
+cd ______（实际路径）
+ls -la
+cat ______/某个文件.md
+
+### 方式 2：通过 agfs-shell
+agfs
+agfs:/> ls /______
+agfs:/> cat /______/某个文件
+
+### 方式 3：通过 HTTP API
+curl http://______:______/______
+
+## 查看 openGauss 中的数据
+
+### 进入容器
+docker exec -it ______（实际容器名） bash
+
+### 连接数据库
+gsql -d ______（实际数据库名） -U ______（实际用户名） -W ______（实际密码） -p ______（实际端口）
+
+### 常用查询
+-- 查看所有表
+\dt
+
+-- 查看 vector_index 表结构
+\d vector_index
+
+-- 查看最近写入的记忆
+SELECT * FROM vector_index ORDER BY created_at DESC LIMIT 10;
+
+-- 查看记忆总数
+SELECT COUNT(*) FROM vector_index;
+
+## API 测试命令
+
+### 健康检查
+curl http://localhost:______/api/v1/health
+
+### 写入记忆
+curl -X POST http://localhost:______/api/v1/after_turn \
+  -H "Content-Type: application/json" \
+  -d '{______}'
+
+### 查询记忆
+curl -X POST http://localhost:______/api/v1/assemble \
+  -H "Content-Type: application/json" \
+  -d '{______}'
+
+## 日常运维
+
+### 启动
+ogc serve
+
+### 停止
+Ctrl+C
+
+### 检查状态
+ogc health-check
+
+### 查看日志
+（根据实际情况填写）
+```
+
+> **⚠️ 注意**：操作指南中的所有 `______` 必须在验证阶段替换为实际值。不允许留占位符。
+
+---
+
 ## 不要做的事情
 
 | 禁止项 | 原因 |
 |--------|------|
 | ❌ 在 Phase 0 完成前写任何代码 | 没有事实依据，会写错 |
 | ❌ 在 Phase 0 未经人工确认前进入 Phase 1 | 调查结果可能有误 |
-| ❌ 移动现有文件到新目录 | 不调整目录结构 |
+| ❌ 移动、重命名、重组现有文件和目录 | 不修改目录结构 |
+| ❌ 创建新子目录来重组现有代码 | 同上 |
 | ❌ 修改现有业务逻辑 | 减少代码修改 |
 | ❌ 修改现有 `os.getenv()` 调用或变量名 | 保留环境变量方式 |
 | ❌ 引入 config.toml / config.yaml 作为项目配置 | 保留环境变量方式 |
@@ -325,6 +507,7 @@ grep -rn "os.getenv\|os.environ\|process.env" --include="*.py" --include="*.js"
 | ❌ 把 JS 插件改写为 Python | 不改语言 |
 | ❌ 凭记忆填写端口、路径、配置字段名 | 必须从 Phase 0 报告中取 |
 | ❌ 自行解决规格与现实的冲突 | stop and ask |
+| ❌ Phase 3 操作指南中留占位符 | 必须全部替换为实际值 |
 
 ---
 
@@ -382,4 +565,11 @@ ogc plugin install              # 安装到 ~/.openclaw/extensions/ ✓
 ogc plugin install              # 再次：自动清理旧版本 ✓
 ogc plugin status               # 已安装 ✓
 ogc plugin uninstall            # 清理 ✓
+
+# 端到端（Phase 3）
+curl after_turn                 # 写入成功 ✓
+AGFS 数据目录中有新文件          # ✓
+openGauss vector_index 中有新记录 # ✓
+curl assemble                   # 查出刚写的记忆 ✓
+操作指南中所有命令可直接执行      # ✓
 ```
