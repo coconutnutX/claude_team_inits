@@ -52,7 +52,7 @@ plugins:
     enabled: true
     path: /local
     config:
-      local_dir: /data/Workspace2/.agfs_data
+      local_dir: /data/agfs
 ```
 
 **配置字段说明**：
