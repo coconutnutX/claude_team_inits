@@ -78,7 +78,7 @@ defaults:
 | 变更 | 原因 |
 |------|------|
 | `server` → `ogmem-server` | 用户要求更具体 |
-| `llm.llm_model` → `llm.model` | 用户要求 |
+| `llm.llm_model` 保留（与 `embedding_model` 命名一致）| 用户要求 |
 | 新增 `index_service` 节 | `scripts/run_index_service.py` 单独的配置项需要归属 |
 | 新增 `agfs.mount_prefix` | `MemoryService.__init__` 和 `run_index_service.py` 都用到 |
 | 新增 `agfs.config_path` | 需要告诉 entrypoint AGFS 的配置文件在哪 |
@@ -391,7 +391,7 @@ refactor(docker): update entrypoint.sh to use config.yaml
 **改动**：
 - 新建 `scripts/config_helper.py`
 - `entrypoint-standalone.sh` 用 `config_helper.py` 提取 `ogmem-server.port`/`workers`
-- `entrypoint.sh` 用 `config_helper.py` 提取 `llm.api_key`/`llm.model`
+- `entrypoint.sh` 用 `config_helper.py` 提取 `llm.api_key`/`llm.llm_model`
 - Dockerfile COPY 新增 `config.example.yaml` 和 `scripts/config_helper.py`
 
 **验证**：Docker 构建并启动
